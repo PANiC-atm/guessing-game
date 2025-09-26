@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Number Wheel Game</title>
+<style>
+  body {
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+  }
+  #gameArea {
+    position: relative;
+    width: 320px;
+    margin: 20px auto;
+  }
+  #wheel {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 5px solid white;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    transform: rotate(0deg);
+    transition: transform 3s ease-out;
+  }
+  .slice {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0% 0%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+  }
+  .odd {
+    color: red;
+    background: black;
+  }
+  .even {
+    color: black;
+    background: red;
+  }
+  /* Arrow pointer */
+  #pointer {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 25px solid yellow;
+    z-index: 10;
+  }
+  #controls {
+    margin-top: 20px;
+  }
+  input, select, button {
+    margin: 5px;
+    padding: 5px 10px;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Number Wheel Game</h1>
+<div id="gameArea">
+  <div id="pointer"></div>
+  <div id="wheel"></div>
+</div>
+
+<div id="controls">
+  <p>Your Balance: $<span id="balance">100</span></p>
+  <p>High Score: $<span id="highscore">100</span></p>
+  <label for="guess">Pick a number:</label>
+  <select id="guess"></select>
+  <label for="bet">Bet Amount:</label>
+  <input type="number" id="bet" min="1" value="10">
+  <button id="spinBtn">Spin</button>
+</div>
+<p id="result"></p>
+
+<script>
+const wheel = document.getElementById('wheel');
+const balanceEl = document.getElementById('balance');
+const highscoreEl = document.getElementById('highscore');
+const guessEl = document.getElementById('guess');
+const betEl = document.getElementById('bet');
+const resultEl = document.getElementById('result');
+
+let balance = 100;
+let highscore = localStorage.getItem('highscore') ? parseInt(localStorage.getItem('highscore')) : 100;
+highscoreEl.textContent = highscore;
+
+// Populate guess dropdown
+for (let i=1; i<=8; i++) {
+  let opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = i;
+  guessEl.appendChild(opt);
+}
+
+// Create wheel slices
+for (let i=0; i<8; i++) {
+  const slice = document.createElement('div');
+  slice.classList.add('slice');
+  slice.classList.add((i+1)%2 === 0 ? 'even' : 'odd');
+  slice.style.transform = `rotate(${45*i}deg) skewY(-45deg)`;
+  slice.textContent = i+1;
+  wheel.appendChild(slice);
+}
+
+function updateBalance() {
+  balanceEl.textContent = balance;
+  if (balance > highscore) {
+    highscore = balance;
+    localStorage.setItem('highscore', highscore);
+    highscoreEl.textContent = highscore;
+  }
+}
+
+document.getElementById('spinBtn').addEventListener('click', () => {
+  const bet = parseInt(betEl.value);
+  const guess = parseInt(guessEl.value);
+
+  if (bet > balance || bet <= 0) {
+    resultEl.textContent = "Invalid bet!";
+    return;
+  }
+
+  // Random spin
+  const landedNumber = Math.floor(Math.random()*8) + 1;
+  const degrees = (360*5) + (landedNumber-1)*45 + (Math.random()*45);
+  wheel.style.transition = "transform 3s ease-out";
+  wheel.style.transform = `rotate(${degrees}deg)`;
+
+  setTimeout(() => {
+    if (landedNumber === guess) {
+      balance *= 5;
+      resultEl.textContent = `🎉 You WON! Landed on ${landedNumber}.`;
+    } else {
+      balance -= bet;
+      resultEl.textContent = `❌ You lost... Landed on ${landedNumber}.`;
+    }
+    updateBalance();
+  }, 3100);
+});
+
+updateBalance();
+</script>
+
+</body>
+</html>
