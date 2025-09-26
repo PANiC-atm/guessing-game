@@ -24,9 +24,9 @@
     border: 5px solid white;
     margin: 0 auto;
     position: relative;
-    overflow: hidden;
     transform: rotate(0deg);
     transition: transform 3s ease-out;
+    overflow: hidden;
   }
   .slice {
     position: absolute;
@@ -35,11 +35,10 @@
     top: 50%;
     left: 50%;
     transform-origin: 0% 0%;
-    clip-path: polygon(0 0, 100% 0, 0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 22px;
     font-weight: bold;
   }
   .odd {
@@ -112,13 +111,17 @@ for (let i=1; i<=8; i++) {
   guessEl.appendChild(opt);
 }
 
-// Create proper pie slices
+// Create 8 slices (rectangles rotated around center)
 for (let i=0; i<8; i++) {
   const slice = document.createElement('div');
   slice.classList.add('slice');
   slice.classList.add((i+1)%2 === 0 ? 'even' : 'odd');
-  slice.style.transform = `rotate(${45*i}deg) skewY(0deg)`;
+  slice.style.transform = `rotate(${45*i}deg) translate(-100%, 0)`; 
   slice.textContent = i+1;
+
+  // Keep text upright
+  slice.style.transform += ` rotate(-${45*i}deg)`;
+
   wheel.appendChild(slice);
 }
 
