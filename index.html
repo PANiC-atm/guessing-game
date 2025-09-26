@@ -1,273 +1,173 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Number Wheel Game (SVG)</title>
+<meta charset="utf-8">
+<title>Number Wheel Game</title>
 <style>
-  :root{
-    --size: 320px;
-    --wheel: 300px;
+  body {
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
   }
-  body{
-    background:#111;
-    color:#fff;
-    font-family:system-ui,Segoe UI,Roboto,Arial;
-    text-align:center;
-    margin:20px;
+  #gameArea {
+    position: relative;
+    width: 320px;
+    margin: 20px auto;
   }
-
-  #gameArea{ position:relative; width:var(--size); margin:18px auto 0; }
-  /* Pointer triangle */
+  #wheel {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 5px solid white;
+    margin: 0 auto;
+    position: relative;
+    transform: rotate(0deg);
+    transition: transform 3s ease-out;
+    overflow: hidden;
+  }
+  .slice {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0% 0%;
+    clip-path: polygon(0% 0%, 200% 0%, 0% 200%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .slice span {
+    transform: rotate(0deg);
+    font-size: 22px;
+    font-weight: bold;
+  }
+  .odd {
+    color: red;
+    background: black;
+  }
+  .even {
+    color: black;
+    background: red;
+  }
+  /* Arrow pointer */
   #pointer {
-    position:absolute;
-    left:50%;
-    top:-12px;
-    transform:translateX(-50%);
-    width:0; height:0;
-    border-left:14px solid transparent;
-    border-right:14px solid transparent;
-    border-bottom:22px solid #ffea00;
-    z-index:30;
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 25px solid yellow;
+    z-index: 10;
   }
-
-  /* Center ring to make it look like a wheel */
-  svg{ display:block; margin:0 auto; }
-  .wheel-border{ fill:none; stroke:#fff; stroke-width:4; }
-
-  /* make text transitions smooth to counter-rotate */
-  .sector-text{
-    font-weight:700;
-    font-size:20px;
-    text-anchor:middle;
-    dominant-baseline:middle;
-    transition: transform 3.5s cubic-bezier(.2,.8,.2,1);
-    transform-box: fill-box;
-    transform-origin: 150px 150px; /* will be updated by JS if size changes */
+  #controls {
+    margin-top: 20px;
   }
-
-  /* sector flashes when landed */
-  .flash{
-    stroke:gold;
-    stroke-width:4;
-    filter: drop-shadow(0 0 10px gold);
-    transition: all .6s ease;
+  input, select, button {
+    margin: 5px;
+    padding: 5px 10px;
+    font-size: 16px;
   }
-
-  #controls{ margin-top:14px; }
-  input, select, button { padding:8px 10px; font-size:15px; margin:6px; }
-  #result{ margin-top:10px; min-height:22px; }
 </style>
 </head>
 <body>
 
 <h1>Number Wheel Game</h1>
-
 <div id="gameArea">
-  <div id="pointer" title="Pointer"></div>
-
-  <!-- SVG wheel: viewBox set for easy math (300x300). Center at (150,150). -->
-  <svg id="wheelSVG" width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="false" role="img">
-    <g id="spinGroup" style="transform-origin:150px 150px; transform-box:fill-box;"></g>
-    <circle cx="150" cy="150" r="140" class="wheel-border"></circle>
-    <!-- center circle to mask inner joins -->
-    <circle cx="150" cy="150" r="36" fill="#111" stroke="#fff" stroke-width="3"></circle>
-  </svg>
+  <div id="pointer"></div>
+  <div id="wheel"></div>
 </div>
 
 <div id="controls">
-  <p>Your Balance: $<span id="balance">100</span> &nbsp; &nbsp; High Score: $<span id="highscore">100</span></p>
-
-  <label>Pick a number:
-    <select id="guess"></select>
-  </label>
-
-  <label>Bet:
-    <input id="bet" type="number" min="1" value="10" />
-  </label>
-
+  <p>Your Balance: $<span id="balance">100</span></p>
+  <p>High Score: $<span id="highscore">100</span></p>
+  <label for="guess">Pick a number:</label>
+  <select id="guess"></select>
+  <label for="bet">Bet Amount:</label>
+  <input type="number" id="bet" min="1" value="10">
   <button id="spinBtn">Spin</button>
 </div>
-
 <p id="result"></p>
 
 <script>
-/* --- Setup --- */
-const cx = 150, cy = 150, r = 140;             // wheel center and radius
-const textRadius = 95;                        // where numbers sit
-const wedge = 360 / 8;                        // 45 degrees
-const halfW = wedge / 2;                      // 22.5 degrees
-
-const spinGroup = document.getElementById('spinGroup');
-const guessEl = document.getElementById('guess');
+const wheel = document.getElementById('wheel');
 const balanceEl = document.getElementById('balance');
 const highscoreEl = document.getElementById('highscore');
+const guessEl = document.getElementById('guess');
 const betEl = document.getElementById('bet');
 const resultEl = document.getElementById('result');
-const spinBtn = document.getElementById('spinBtn');
-const wheelSVG = document.getElementById('wheelSVG');
 
 let balance = 100;
-let highscore = localStorage.getItem('nw_highscore') ? parseInt(localStorage.getItem('nw_highscore')) : 100;
+let highscore = localStorage.getItem('highscore') ? parseInt(localStorage.getItem('highscore')) : 100;
 highscoreEl.textContent = highscore;
-balanceEl.textContent = balance;
 
-// populate number choices 1..8
-for (let i=1; i<=8; i++){
-  const opt = document.createElement('option');
+// Populate guess dropdown
+for (let i=1; i<=8; i++) {
+  let opt = document.createElement('option');
   opt.value = i;
   opt.textContent = i;
   guessEl.appendChild(opt);
 }
 
-/* build 8 wedge sectors as SVG paths and upright text */
-const sectors = [];
-for (let j=0; j<8; j++){
-  const n = j+1;
-  // center angle for this wedge in degrees; start with number 1 at top (-90deg)
-  const centerAngle = -90 + j * wedge;
-  const startAngle = centerAngle - halfW;
-  const endAngle = centerAngle + halfW;
-  const sRad = startAngle * Math.PI/180;
-  const eRad = endAngle * Math.PI/180;
+// Create 8 slices (real wedges that rotate with the wheel)
+for (let i=0; i<8; i++) {
+  const slice = document.createElement('div');
+  slice.classList.add('slice');
+  slice.classList.add((i+1)%2 === 0 ? 'even' : 'odd');
+  slice.style.transform = `rotate(${45*i}deg) skewY(-45deg)`; 
 
-  const x1 = cx + r * Math.cos(sRad);
-  const y1 = cy + r * Math.sin(sRad);
-  const x2 = cx + r * Math.cos(eRad);
-  const y2 = cy + r * Math.sin(eRad);
+  const num = document.createElement('span');
+  num.textContent = i+1;
+  num.style.transform = `skewY(45deg) rotate(-${45*i}deg)`;
 
-  // path: move to center, line to start arc point, arc to end arc point, close
-  const pathD = [
-    `M ${cx} ${cy}`,
-    `L ${x1} ${y1}`,
-    `A ${r} ${r} 0 0 1 ${x2} ${y2}`,
-    'Z'
-  ].join(' ');
+  slice.appendChild(num);
+  wheel.appendChild(slice);
+}
 
-  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d', pathD);
-
-  // odd/even coloring rules: odd = red number on black background; even = black number on red bg
-  if (n % 2 === 1) {
-    path.setAttribute('fill', '#000'); // black wedge
-    path.setAttribute('data-text-fill', 'red');
-  } else {
-    path.setAttribute('fill', '#c81a1a'); // red wedge
-    path.setAttribute('data-text-fill', 'black');
+function updateBalance() {
+  balanceEl.textContent = balance;
+  if (balance > highscore) {
+    highscore = balance;
+    localStorage.setItem('highscore', highscore);
+    highscoreEl.textContent = highscore;
   }
-  path.setAttribute('id', `sector-${j}`);
-  path.setAttribute('stroke', 'transparent');
-
-  // text position at centerAngle
-  const cRad = centerAngle * Math.PI/180;
-  const tx = cx + textRadius * Math.cos(cRad);
-  const ty = cy + textRadius * Math.sin(cRad);
-
-  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-  text.setAttribute('x', tx);
-  text.setAttribute('y', ty);
-  text.setAttribute('class','sector-text');
-  text.setAttribute('id', `text-${j}`);
-  text.textContent = n;
-
-  // apply text color based on wedge data
-  text.setAttribute('fill', (n%2===1) ? 'red' : 'black');
-
-  // make sure text _initially_ upright: no rotation required now; we will counter-rotate during spins
-  text.style.transformOrigin = `${cx}px ${cy}px`;
-  text.style.transformBox = 'fill-box';
-
-  // put path & text into the spinGroup
-  spinGroup.appendChild(path);
-  spinGroup.appendChild(text);
-
-  sectors.push({path, text, centerAngle});
 }
 
-/* helper to set transform origin in px (in case viewBox or size changes) */
-function fixOrigins(){
-  // transform-origin styling used by CSS transforms on the group and texts
-  spinGroup.style.transformOrigin = `${cx}px ${cy}px`;
-  sectors.forEach(s => {
-    s.text.style.transformOrigin = `${cx}px ${cy}px`;
-  });
-}
-fixOrigins();
+document.getElementById('spinBtn').addEventListener('click', () => {
+  const bet = parseInt(betEl.value);
+  const guess = parseInt(guessEl.value);
 
-/* --- Spin logic --- */
-let spinning = false;
-spinBtn.addEventListener('click', () => {
-  if (spinning) return;
-  const bet = Math.floor(Number(betEl.value) || 0);
-  const guess = parseInt(guessEl.value, 10);
-
-  if (!guess || bet <= 0 || bet > balance) {
-    resultEl.textContent = 'Invalid bet — make sure bet is >0 and ≤ your balance.';
+  if (bet > balance || bet <= 0) {
+    resultEl.textContent = "Invalid bet!";
     return;
   }
 
-  // pick landed number
-  const landed = Math.floor(Math.random()*8) + 1; // 1..8
-  const j = landed - 1;
+  // Random spin
+  const landedNumber = Math.floor(Math.random()*8) + 1;
+  const degrees = (360*5) + (landedNumber-1)*45 + (Math.random()*45);
+  wheel.style.transition = "transform 3s ease-out";
+  wheel.style.transform = `rotate(${degrees}deg)`;
 
-  // spins & offset inside wedge
-  const spins = Math.floor(Math.random() * 4) + 5;          // 5..8 full spins
-  const delta = (Math.random() * (halfW*2 - 6)) - (halfW - 3); // keep inside wedge margin (~±19.5 -> ±19.5-3)
-  // rotation formula: R = spins*360 + (-j*45 + delta)
-  const R = spins * 360 + (- j * wedge + delta);
-
-  // start animated rotation (CSS transforms)
-  spinning = true;
-  spinBtn.disabled = true;
-  resultEl.textContent = 'Spinning...';
-  // set transition duration
-  const duration = 3500; // ms
-  spinGroup.style.transition = `transform ${duration}ms cubic-bezier(.2,.8,.2,1)`;
-  spinGroup.style.transform = `rotate(${R}deg)`;
-
-  // counter-rotate each text so numbers remain upright
-  sectors.forEach(s => {
-    s.text.style.transition = `transform ${duration}ms cubic-bezier(.2,.8,.2,1)`;
-    s.text.style.transform = `rotate(${-R}deg)`; // counter-rotation about center
-  });
-
-  // clear old flash
-  sectors.forEach(s => s.path.classList.remove('flash'));
-
-  // after spin ends
   setTimeout(() => {
-    // highlight landed sector
-    const landedSector = sectors[j];
-    landedSector.path.classList.add('flash');
-
-    // resolve bet
-    if (guess === landed) {
-      balance = Math.floor(balance * 5);
-      resultEl.textContent = `🎉 WON! Wheel landed on ${landed}. Your balance multiplied by 5.`;
+    if (landedNumber === guess) {
+      balance *= 5;
+      resultEl.textContent = `🎉 You WON! Landed on ${landedNumber}.`;
     } else {
-      balance = Math.max(0, balance - bet);
-      resultEl.textContent = `❌ Lost — wheel landed on ${landed}. You lost $${bet}.`;
+      balance -= bet;
+      resultEl.textContent = `❌ You lost... Landed on ${landedNumber}.`;
     }
-
-    // update score & high score
-    balanceEl.textContent = balance;
-    if (balance > highscore) {
-      highscore = balance;
-      localStorage.setItem('nw_highscore', String(highscore));
-      highscoreEl.textContent = highscore;
-    }
-
-    // re-enable
-    spinning = false;
-    spinBtn.disabled = false;
-
-    // allow a short time for flash before removing
-    setTimeout(()=> landedSector.path.classList.remove('flash'), 900);
-
-  }, duration + 30);
+    updateBalance();
+  }, 3100);
 });
 
-/* keep UI consistent if the SVG is resized (rare) */
-window.addEventListener('resize', fixOrigins);
+updateBalance();
 </script>
+
 </body>
 </html>
